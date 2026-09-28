@@ -1,5 +1,19 @@
 # MELLCOIN
 
+> ⚠️ **Work in progress — the project is unfinished.**
+> An attempt to build a faithful (and better) copy of an existing tap-to-earn game in the style of
+> Notcoin. The core game loop works; many features are still stubs — see
+> [«Что не сделано намеренно»](#что-не-сделано-намеренно) at the end.
+>
+> **English summary.** Web client in React (Vite), backend in NestJS with Socket.IO and PostgreSQL.
+> Taps are batched on the client every 250 ms, applied to in-memory player state on the server and
+> flushed to PostgreSQL in a single transaction every 3 s; energy is computed lazily from timestamps
+> instead of per-player timers. Login/password auth with the session in an httpOnly cookie, leagues,
+> boosts and a Docker Compose setup (Postgres + API + nginx). Not done yet: Telegram Mini App auth,
+> anti-cheat, migrations, referrals, task rewards, tests.
+>
+> **Проект не доделан** — это моя попытка сделать точную (и даже лучшую) копию существующей игры.
+
 Тап-ту-эрн игра в стиле Notcoin (1 сезон). База: веб-приложение без Telegram-интеграции,
 авторизация логин/пароль на отдельной странице, сессия в httpOnly-куке.
 
