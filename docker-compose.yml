@@ -1,0 +1,106 @@
+# =====================================================================
+#  MELLCOIN — вся система тремя контейнерами
+#
+#  Compose создаёт общую сеть и поднимает в ней три сервиса.
+#  Внутри этой сети контейнеры видят друг друга ПО ИМЕНИ СЕРВИСА:
+#  сервер обращается к базе по адресу `postgres:5432`.
+#
+#  Отсюда главная путаница новичков — два разных адреса одной базы:
+#    • изнутри Docker  ->  postgres:5432   (имя сервиса, ВНУТРЕННИЙ порт)
+#    • с вашего Windows ->  localhost:5433 (localhost, порт из ports:)
+#  Секция ports нужна только чтобы достучаться С ХОСТА. Контейнерам
+#  между собой она не нужна вообще.
+# =====================================================================
+
+services:
+  # ── База данных ────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: mellcoin-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mellcoin
+      POSTGRES_PASSWORD: mellcoin
+      POSTGRES_DB: mellcoin
+    ports:
+      # "снаружи:внутри" — 5433 на хосте, чтобы не спорить с локально
+      # установленным PostgreSQL, который обычно занимает 5432
+      - "5433:5432"
+    volumes:
+      # Именованный том: данные переживают удаление контейнера.
+      # docker compose down   — данные на месте
+      # docker compose down -v — том удаляется вместе с данными
+      - mellcoin-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mellcoin -d mellcoin"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Backend (NestJS) ───────────────────────────────────────────────
+  server:
+    build:
+      # context — корень проекта: это npm workspaces, package-lock.json
+      # лежит в корне. Всё, что вне контекста, Dockerfile скопировать не может.
+      context: .
+      dockerfile: server/Dockerfile
+    container_name: mellcoin-server
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        # Ждём не просто «контейнер запущен», а healthcheck postgres.
+        # Иначе Nest стартует раньше базы и упадёт на подключении.
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+
+      DB_HOST: postgres      # <- имя сервиса, НЕ localhost
+      DB_PORT: 5432          # <- внутренний порт, НЕ 5433
+      DB_USER: mellcoin
+      DB_PASSWORD: mellcoin
+      DB_NAME: mellcoin
+
+      # Схема создаётся автоматически. Для реального прода — false + миграции.
+      DB_SYNCHRONIZE: "true"
+
+      JWT_SECRET: dev_super_secret_change_me
+      JWT_EXPIRES_IN: 30d
+      COOKIE_NAME: mell_token
+
+      # secure:true требует HTTPS. Локально ходим по http — оставляем false,
+      # иначе браузер молча не сохранит куку и вход не сработает.
+      COOKIE_SECURE: "false"
+      COOKIE_SAMESITE: lax
+
+      # Тестовая админка на /api/admin — без авторизации.
+      # Для реального сервера убрать или поставить false.
+      ADMIN_ENABLED: "true"
+
+      # Откуда браузер открывает клиент — для CORS.
+      # Это адрес В БРАУЗЕРЕ, а не внутри сети Docker.
+      CLIENT_ORIGIN: http://localhost:8080
+    ports:
+      - "3000:3000"
+
+  # ── Frontend (React + nginx) ───────────────────────────────────────
+  client:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+      args:
+        # Адрес API, который окажется в собранном JS. Его подставляет
+        # браузер пользователя, поэтому здесь localhost, а не `server`:
+        # имя `server` резолвится только внутри Docker-сети.
+        VITE_API_URL: http://localhost:3000
+    container_name: mellcoin-client
+    restart: unless-stopped
+    depends_on:
+      server:
+        condition: service_healthy
+    ports:
+      # nginx внутри слушает 80, наружу отдаём 8080
+      - "8080:80"
+
+volumes:
+  mellcoin-pgdata:

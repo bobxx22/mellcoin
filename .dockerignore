@@ -1,0 +1,32 @@
+# Что НЕ отправлять в Docker при сборке.
+# Без этого файла Docker копирует всю папку проекта в "контекст сборки" —
+# включая node_modules с хоста (сотни мегабайт, собранные под Windows).
+
+node_modules
+**/node_modules
+
+# Результаты локальных сборок — внутри образа мы собираем заново
+dist
+**/dist
+build
+**/build
+
+# Секреты и локальные настройки: переменные передаём через docker-compose
+.env
+**/.env
+
+.git
+.gitignore
+.claude
+*.log
+README.md
+DOCKER.md
+
+# Исходники графики: в образ едет только обработанный результат
+# из client/public/art (его готовит scripts/prepare_art.py)
+*.jpeg
+*.jpg
+/coin.*
+/logo.*
+/*_cup.png
+scripts/

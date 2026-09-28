@@ -1,0 +1,31 @@
+{
+  "name": "mellcoin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MELLCOIN - tap-to-earn game (Notcoin style)",
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose stop postgres",
+    "db:reset": "docker compose down -v && docker compose up -d postgres",
+    "dev": "concurrently -n SERVER,CLIENT -c cyan,magenta \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "npm run start:dev --workspace server",
+    "dev:client": "npm run dev --workspace client",
+    "build": "npm run build --workspace server && npm run build --workspace client",
+    "emoji:sync": "node scripts/sync-emoji.mjs",
+    "art:prepare": "python scripts/prepare_art.py",
+    "fonts:sync": "node scripts/sync-fonts.mjs",
+    "docker:build": "docker compose build",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "docker:ps": "docker compose ps",
+    "docker:reset": "docker compose down -v && docker compose up -d --build"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
